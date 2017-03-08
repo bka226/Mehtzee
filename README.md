@@ -1,1 +1,2 @@
 # Mehtzee
+Classic dice game

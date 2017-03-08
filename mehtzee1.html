@@ -1,0 +1,637 @@
+<!DOCTYPE>
+<!--
+	Names:  Binod Katwal 
+	File:    Mehtzee1.html
+	Version: 1
+	Date:    Jan 12 2017
+
+-->
+<HTML>
+<TITLE>Meh-tzee</TITLE>
+<HEAD>
+<STYLE>
+table#Dice {
+	width: 60%;
+    border: 3px solid black;
+}
+table#Dice th, td {
+    border: 3px solid black;
+}
+table#ScoreCard {
+	width: 60%;
+    border: 1px solid black;
+	}
+table#ScoreCard th {
+	text-align: center;
+    border: 1px solid black;
+}
+<!--
+table#ScoreCard tr td {
+    border: 1px solid black;
+}
+-->
+table#ScoreCard tr td {
+	width: 43%;
+	text-align: center;
+    border: 1px solid black;
+}
+table#ScoreCard tr td:nth-child(1) {
+	width: 14%;
+    border: 3px solid black;
+}
+
+table#Dice td {
+	image-align: center;
+}
+
+table#WinLoss td {
+	text-align: center;
+}
+
+#Roll, #NewGame {
+	width: 60%;
+	text-align: center;
+	font-size: 1.5em;
+}
+
+h1 {
+	font-size: 2em;
+	width: 60%;
+	text-align: center;
+}
+</STYLE>
+
+<SCRIPT>
+var defaultPath = "http://www.cs.uky.edu/~paul/CS316/P2/";
+var totalGames = 0;
+var cWins = 0;								// computer win total
+var pWins = 0;								// player win total
+var diceValues = [0, 0, 0, 0, 0, 0];		// values of dice
+var heldValues = [false, false, false, false, false, false]; // is a die held?
+											// the different scoring slots
+//                  1s 2s 3s 4s 5s 6s bonus mehtzee total
+var compScore  =   [0, 0, 0, 0, 0, 0,   0,     0,     0];
+var playerScore  = [0, 0, 0, 0, 0, 0,   0,     0,     0];
+					
+var currentTurn = 0;						// current turn, duh!
+var maxTurns = 7;
+var currentRoll = 0;
+var MAXROLLS = 4;
+
+function load() {
+	newgame = document.getElementById("NewGame");
+	newgame.addEventListener("click", ModNewGame);
+	var person = prompt("Please enter your name", "");
+	if (person != null) 
+	{
+		if(person.length > 20)
+		{
+			person = person.slice(0, 20)//https://www.w3schools.com/jsref/jsref_slice_string.asp resource for slicing string
+		}
+		document.getElementById("thePlayer").innerHTML = person;
+	}
+}	// Make NewGame clickable.....
+
+function ModNewGame(theEvent) {
+	newgame = document.getElementById("NewGame");
+	newgame.onclick = StartGame(newgame);
+}
+
+function StartGame(newgame) {
+	newgame.innerHTML = "Game Started!";
+	ResetScores();
+	updateWins();
+	resetDice();
+	ResetButtons();
+	currentTurn = 0;
+	for(var a = 0; a < 6; a++)
+	{
+		document.getElementByID("d" + a.toString()).src = "http://www.cs.uky.edu/~paul/CS316/P2/0.png";
+	}
+}
+
+function ResetScores() {
+	var slot = "";
+	var maxSlots = playerScore.length;
+	for(i = 0 ; i < (playerScore.length-1) ; i++) {
+		playerScore[i] = 0;
+		compScore[i] = 0;
+	}
+}
+
+function resetDice() {
+//	console.log("Inside resetDice()!");
+	for (i = 0 ; i < diceValues.length; i++) {
+		diceValues[i] = 0;
+		heldValues[i] = false;
+		whichDie = document.getElementById("d"+i);
+		whichDie.onclick = toggleHold;
+	}
+}
+
+function ResetButtons() {
+//	console.log("Inside ResetButtons()!");
+	resetRoll();
+//	console.log("Making buttons clickable");
+	resetDice();
+	for(var i = 0; i < 9; i++)
+	{
+		document.getElementById("C" + i.toString()).innerHTML = "";
+		document.getElementById("P" + i.toString()).innerHTML = "";
+		document.getElementById("P" + i.toString()).style.border = '1px solid black';//https://www.w3schools.com/jsref/prop_style_border.asp resource for changing border style
+	}
+	
+	
+	for(var f = 0; f < 8; f++)
+    {
+    	if(f < 6 || f == 7)
+        {
+    		var box = "P" + f.toString();
+    		var boxclick = document.getElementById(box);
+        	boxclick.addEventListener("click", setScore);
+        }
+    }
+	newMessage("Your Turn!");
+}
+
+function resetRoll() {
+	newturn = document.getElementById("Roll");
+	newturn.style.color = "blue";
+	newturn.onclick = Roll;
+	newturn.innerHTML = "Roll";
+	currentRoll = 0;
+}
+
+function setScore() {
+
+	// "this" variable points to the object they clicked!
+	// this.id will be useful for figuring out what they clicked on.
+
+	var slot = 0 // ??
+	var who =  0 // ??
+	var isPlayer = true;
+	var aScore = 0;
+
+	// redacted
+	//......
+	if(isPlayer)
+	{
+		var id = this.id;
+		var num = parseInt(id[1]);
+		aScore = computeScore("Player", num, id);
+		var elem = document.getElementById(id);
+		
+		if(elem.innerHTML == '' && currentRoll != 0)
+		{
+			elem.innerHTML = aScore;
+			var bonus = computeBonus("Player");
+			document.getElementById("P6").innerHTML = bonus;
+			var total = updateTotal("Player");
+			document.getElementById("P8").innerHTML = total;
+			playerScore[playerScore.length-1] = total;
+			document.getElementById(id).style.border = '3px solid blue';
+			resetRoll();
+			doComputer(currentTurn);
+		}
+		else
+		{
+			elem.onclick = noClick;
+		}
+	}
+}
+
+function doComputer(whichTurn) {
+	console.log("In doComputer()!"+whichTurn);
+	resetDice();
+	var slot = 0;
+	whichTurn = whichTurn;
+	var id = "C" + (whichTurn).toString();
+	if(whichTurn < 6)
+	{
+		for(var i = 0; i < 4; i++)
+		{
+			Roll();
+			for(var j = 0; j < 6; j++)
+			{
+				if(diceValues[j] == whichTurn + 1)
+				{
+					document.getElementById("d" + j.toString()).src = "http://www.cs.uky.edu/~paul/CS316/P2/"+diceValues[j]+"green.png";
+					heldValues[j] = true;
+				}
+			}
+		}
+	}
+	else//http://stackoverflow.com/questions/1053843/get-the-element-with-the-highest-occurrence-in-an-array resource for finding mode of an array
+	{
+		var map = new Array(6);
+		var max = diceValues[0]
+		var maxcount = 1;
+		for(var t = 0; t < 4; t++)
+		{
+			Roll();
+			for(var i = 0; i < diceValues.length; i++)
+			{
+				var value = diceValues[i];
+				if(map[value] == null)
+				{
+					map[value] = 1;
+				}
+				else
+				{
+					map[value]++;
+				}
+				if(map[value] > maxcount)
+				{
+					max = value;
+					maxcount = map[value];
+				}
+			}
+			for(var f = 0; f < diceValues.length; f++)
+			{
+				if(diceValues[f] == max)
+				{
+					document.getElementById("d" + f.toString()).src = "http://www.cs.uky.edu/~paul/CS316/P2/"+diceValues[f]+"green.png";
+					heldValues[f] = true;
+				}	
+			}
+		}
+	}
+	computeScore("Computer", whichTurn, document.getElementById(id));
+	
+// redacted....
+
+}
+
+function computeBonus(player) {
+	console.log("In computeBonus!");	
+	var bonuscount = 0;
+	var bonusValue = 0;
+	if(player == "Computer")//Finds bonus for computer player
+	{
+		for(var i = 0; i < 6; i++)
+		{
+			if(document.getElementById("C" + i.toString()).innerHTML != "")
+			{
+				bonuscount = bonuscount + parseInt(document.getElementById("C" + i.toString()).innerHTML);
+			}
+		}
+		if(bonuscount >= 84)
+		{
+			
+			bonusValue = 35;
+		}
+		else
+		{
+			bonusValue = 0;
+		}
+	}
+	else//Finds bonus for human player
+	{
+		
+		for(var i = 0; i < 6; i++)
+		{
+			if(document.getElementById("P" + i.toString()).innerHTML != "")
+			{
+				bonuscount = bonuscount + parseInt(document.getElementById("P" + i.toString()).innerHTML);
+			}
+		}
+		if(bonuscount >= 84)
+		{
+			
+			bonusValue = 35;
+		}
+		else
+		{
+			bonusValue = 0;
+		}
+	}
+	return bonusValue;
+	
+//  redacted
+}
+
+function endGame() {
+ 	console.log("Game over!");
+	totalGames += 1;
+	
+	if (playerScore[playerScore.length-1] >= compScore[playerScore.length-1]) {
+		newMessage("You won! Press New Game to play again!")
+		pWins += 1;
+	} else {
+		newMessage("You lost! Press New Game to play again!")
+		cWins += 1;
+	}
+	updateWins();
+	newgame.innerHTML = "New Game ?";
+}
+
+function updateTotal(player) 	{
+	var total = 0;//Holds value of total score
+	if(player == "Computer")//Finds total score for Computer, updates after each roll
+	{
+		for(var i = 0; i < 8; i++)
+		{
+			if(document.getElementById("C" + i.toString()).innerHTML != "")
+			{
+				total = total + parseInt(document.getElementById("C" + i.toString()).innerHTML);
+			}
+		}
+	}
+	if(player == "Player")//Finds total score for Player, updates after each roll
+	{
+		for(var i = 0; i < 8; i++)
+		{
+			if(document.getElementById("P" + i.toString()).innerHTML != "")
+			{
+				total = total + parseInt(document.getElementById("P" + i.toString()).innerHTML);
+			}
+		}
+	}
+	return total;
+
+}
+
+function computeScore(player, slot, element) {
+	var singlesTotal = 0;//Holds value for one score
+	var dieValue = parseInt(slot)+1;//Value of die
+//	console.log("computeScore = "+slot);
+
+	if (slot < 6) {								//if not the mehtzee slot
+//  redacted
+		var count = 0;
+		for(var t = 0; t < 6; t++)
+        {
+        	if(diceValues[t] == dieValue)
+            {
+            	count++;
+            }
+        }
+        singlesTotal = dieValue * count;
+	}
+	if (slot == 7) {//If the mehtzee slot
+		var all = new Boolean(true)//https://www.tutorialspoint.com/javascript/javascript_boolean_object.htm resource for initializing bools
+		for(var a = 1; a < diceValues.length; a++)
+		{
+			if(diceValues[0] != diceValues[a])
+			{
+				all = false;
+			}
+		}
+		if(all)
+		{
+			alert("MEHTZEE!!!!!!!");//https://www.w3schools.com/js/js_popup.asp resource for creating popups
+			singlesTotal = 50;
+		}
+		
+						// mehtzee slot
+//  redacted
+	}
+	if(player == "Player")
+	{
+		return singlesTotal;
+	}
+	if(player == "Computer")
+	{
+		if(currentTurn < 6)
+		{
+			var id = "C" + slot.toString();//Id of element
+		}
+		else
+		{
+			var id = "C" + (slot+1).toString();//id of element
+		}
+		document.getElementById(id).innerHTML = singlesTotal;
+		var bonus = computeBonus(player);
+		document.getElementById("C6").innerHTML = bonus;
+		var total = updateTotal(player);
+		document.getElementById("C8").innerHTML = total;
+		compScore[playerScore.length-1] = total;
+		currentTurn = currentTurn + 1;
+		if(currentTurn == 7)
+		{
+			endGame();
+		}
+		//elem.innerHTML = aScore;
+		else
+		{
+			resetRoll();
+		}
+	}	
+	//return singlesTotal;
+}
+
+function toggleHold() {
+	console.log("In toggleHold!");
+	console.log("In toggleHold, src = "+this.src);
+	console.log("In toggleHold, src = "+this.id);
+	var toggle = doToggle(this.id, this.src);
+	this.src = toggle;
+}
+
+//
+// pre-condition:	path is in the form of:
+//					h
+// 
+// where X is a number from 1-6.
+//
+// post-condition:	If ...X.png then return ...Xgreen.png, 
+//					otherwise return ...X.png.
+//
+function doToggle(id,path) {
+
+	var newPath = path;
+	var pathArray = path.split("/");
+	var pathSize = pathArray.length;
+	var currFile = pathArray[pathSize-1];
+
+	// currFile will be in two forms:  "X.png" or "Xgreen.png"
+	var fileName = currFile.split(".");
+	// fileName will be an array (size 2) either "X" or "Xgreen" and "png".
+
+	var res = fileName[0].match(/green/);
+
+	if (res == null) {     						// currently not on HOLD
+		heldValues[id[1]] = true;		
+		newPath = defaultPath+fileName[0]+"green."+fileName[1];
+	} else {
+		heldValues[id[1]] = false;		
+		newPath = defaultPath + fileName[0][0] +"."+fileName[1];
+	}
+//	debugHeld();
+	return newPath;
+}
+
+function debugHeld() {
+	var i = 0;
+
+	for (i = 0 ; i < heldValues.length; i++) {
+		console.log("I "+i+" = "+heldValues[i]);
+	}
+}
+
+function Roll() {
+//	console.log("Inside Roll() "+currentRoll);
+	var rollB = document.getElementById("Roll");
+	if(currentRoll == 0)
+	{
+		resetDice();
+	}
+	// roll dice, update images, modify Roll button;
+	currentRoll += 1;
+	rollDice(currentRoll);
+	rollB.innerHTML = "Roll("+currentRoll+")";
+	rollB.nodeValue = currentRoll;
+	if (currentRoll == MAXROLLS) {
+		rollB.style.color = "black";
+		rollB.onclick = noClick;
+		newMessage("Out of Rolls, choose a scoring option.");
+		return;
+	} 
+	newMessage((MAXROLLS-currentRoll)+" roll(s) remaining.");
+}
+
+function newMessage(aMessage) {
+	document.getElementById("gameMessage").innerHTML = aMessage;
+}
+
+function noClick() {
+//	console.log("No more rolls!");
+}
+
+function rollDice() {
+	var p = 0;
+	for (p = 0 ; p < diceValues.length; p++) {	
+	//  redacted - check heldValues to see if the die needs to be rolled..
+	//     etc.  if so call getRandomInt()....
+
+    if(!heldValues[p])
+    {
+		diceValues[p] = getRandomInt(1, 6);
+		var TempNum = "d" + p.toString();
+		firstDie = document.getElementById(TempNum);		
+		firstDie.src = "http://www.cs.uky.edu/~paul/CS316/P2/"+diceValues[p]+".png";
+    }
+	}
+}
+
+function getRandomInt(min, max) {
+	var randNum = 0;//https://www.w3schools.com/jsref/jsref_random.asp resource for creating random numbers
+	min = Math.ceil(min);
+	max = Math.floor(max);
+	randNum = Math.floor((Math.random() * max) + min);
+//	console.log("Random = ", randNum);
+	return randNum;
+}
+
+function updateWins() {
+
+var cPercent = 0;
+var pPercent = 0;
+
+	if (totalGames > 0) {
+		cPercent = cWins/totalGames*100;
+		pPercent = pWins/totalGames*100;
+	}
+
+	document.getElementById("cWins").innerHTML = cWins;
+	document.getElementById("cPercent").innerHTML = cPercent + "%";
+	document.getElementById("pWins").innerHTML = pWins;
+	document.getElementById("pPercent").innerHTML = pPercent + "%";
+	document.getElementById("totalGames").innerHTML = totalGames;
+}
+
+</SCRIPT>
+</HEAD>
+<BODY ONLOAD="load()">
+<h1>Welcome to Meh-tzee</h1>
+
+<P ID="NewGame">New Game ?</P>
+
+<TABLE ID="Dice">
+<TR>
+	<TD><img id="d0" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+	<TD><img id="d1" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+	<TD><img id="d2" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+	<TD><img id="d3" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+	<TD><img id="d4" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+	<TD><img id="d5" SRC="http://www.cs.uky.edu/~paul/CS316/P2/0.png"></TD>
+</TR>
+</TABLE>
+
+<P ID="Roll">Roll</P>
+
+<TABLE ID="ScoreCard">
+<TR>     
+	<TH></TH><TH>Computer</TH>		<!-- Computer -->
+	<TH ID="thePlayer">Player</TH>     <!-- Player -->
+</TR>
+<TR>     
+	<TD>Ones</TD>
+	<TD ID="C0"></TD>		<!-- Computer -->
+	<TD ID="P0"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Twos</TD>
+	<TD ID="C1"></TD>		<!-- Computer -->
+	<TD ID="P1"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Threes</TD>
+	<TD ID="C2"></TD>		<!-- Computer -->
+	<TD ID="P2"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Fours</TD>
+	<TD ID="C3"></TD>		<!-- Computer -->
+	<TD ID="P3"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Fives</TD>
+	<TD ID="C4"></TD>		<!-- Computer -->
+	<TD ID="P4"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Sixes</TD>
+	<TD ID="C5"></TD>		<!-- Computer -->
+	<TD ID="P5"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Bonus</TD>
+	<TD ID="C6"></TD>		<!-- Computer -->
+	<TD ID="P6"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Meh-tzee</TD>
+	<TD ID="C7"></TD>		<!-- Computer -->
+	<TD ID="P7"></TD>			<!-- Player -->
+</TR>
+<TR>     
+	<TD>Total</TD>
+	<TD ID="C8"></TD>		<!-- Computer -->
+	<TD ID="P8"></TD>			<!-- Player -->
+</TR>
+</TABLE>
+
+<BR></BR>
+<P ID="gameMessage">Click "New Game ?" above.</P>
+<BR></BR>
+
+<TABLE ID="WinLoss" width=60%>
+<TR>     
+	<TH>Computer Wins</TH><TH>Computer %win</TH>
+	<TH>Player Wins</TH><TH>Player %win</TH>
+	<TH>Total Games Played</TH>
+</TR>
+<TR>     
+	<TD ID="cWins"></TD>
+	<TD ID="cPercent"></TD>
+	<TD ID="pWins"></TD>			<!-- Player -->
+	<TD ID="pPercent"></TD>
+	<TD ID="totalGames"></TD>
+</TR>
+</TABLE>
+</BODY>
+</HTML>
+
+
+
